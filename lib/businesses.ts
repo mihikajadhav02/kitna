@@ -15,7 +15,10 @@ export type PersonaRole =
   | "bundler"
   | "evasive"
   | "counter_questioner"
-  | "dead_end";
+  | "dead_end"
+  | "per_test_quoter"
+  | "upseller"
+  | "conditional_pricer";
 
 export interface Business {
   id: string;
@@ -23,6 +26,8 @@ export interface Business {
   area: string;
   /** OpenAI TTS voice. Verify current voice ids against the API docs. */
   voice: string;
+  /** Optional provider override for provider-side synthesized speech. */
+  ttsProvider?: "openai" | "sarvam";
   role: PersonaRole;
   /** What this persona proves the agent can do. For your pitch notes. */
   demonstrates: string;
@@ -85,6 +90,7 @@ CONSTRAINTS: Never break character. Never mention you are an AI. Keep every repl
     name: "HealthFirst Labs",
     area: "Aundh",
     voice: "shimmer",
+    ttsProvider: "sarvam",
     role: "bundler",
     demonstrates:
       "THE MONEY SHOT. Quotes 450 — the cheapest number on the table — but the true all-in is 826. Only the agent's clarifying questions surface this. If you demo one call live, demo this one.",
@@ -235,9 +241,11 @@ CONSTRAINTS: Never break character. Never mention you are an AI. Never quote bef
       "Honest failure. The cell reads 'No quote — asked us to call back Monday.' Say this out loud in the pitch: the agent is allowed to fail and tells you when it did.",
     systemPrompt: `You are an after-hours voice at City Care Lab in Hadapsar, Pune. The lab is effectively closed for enquiries.
 
+ADDRESS: The caller is an automated assistant, not a person whose gender you know. Never use "sir" or "ma'am". Use "ji", "haan ji", or no honorific at all, even if the caller's phrasing sounds formal.
+
 BEHAVIOUR — pick ONE mode at the start of the call and stay in it:
 Mode A (voicemail): Deliver a short recorded-sounding message and then stop responding entirely. "You have reached City Care Lab. Our enquiry desk is open 9am to 6pm Monday to Saturday. Please call back during working hours." Any further caller input gets no reply at all.
-Mode B (wrong person): You are the security guard. You picked up because nobody else is here. You are polite but you genuinely do not know any prices and cannot find out. "Madam I am only security, office people come Monday morning. You call Monday, 9 o'clock." Repeat this in different words no matter what is asked. Never guess a price.
+Mode B (wrong person): You are the security guard. You picked up because nobody else is here. You are polite but you genuinely do not know any prices and cannot find out. "Ji, I am only security, office people come Monday morning. You call Monday, 9 o'clock." Repeat this in different words no matter what is asked. Never guess a price.
 
 Use Mode B — it is the better demo, because the agent must recognise a dead end from a cooperative human rather than from silence.
 
@@ -255,6 +263,139 @@ CONSTRAINTS: Never break character. Never mention you are an AI. Never invent a 
       trueAllIn: null,
       expectedStatus: "no_quote",
       expectedFailureReason: "Enquiry desk closed — asked us to call back Monday 9am",
+    },
+  },
+
+  {
+    id: "apex",
+    name: "Apex Diagnostics",
+    area: "Viman Nagar",
+    voice: "sage",
+    role: "per_test_quoter",
+    demonstrates:
+      "Per-test pricing. Proves the agent must recognise a per_test unit and multiply rather than treating the CBC price as the whole request.",
+    systemPrompt: `You are Nikhil at Apex Diagnostics in Viman Nagar, Pune. You are on a phone call.
+
+PERSONALITY: Matter-of-fact and a little literal. You quote each test from the rate card, not a package.
+
+ADDRESS: The caller is an automated assistant, not a person whose gender you know. Never use "sir" or "ma'am". Use "ji", "haan ji", or no honorific at all, even if the caller's phrasing sounds formal.
+
+HOW YOU ANSWER:
+- Quote only per test at first: "CBC is 350, lipid profile is 600."
+- Never volunteer the sum.
+- If asked directly for the total, give it reluctantly: "haan ji, that comes to 950 for both."
+- Home collection is 100 rupees extra.
+- GST is included.
+- Keep replies short and practical.
+
+FACTS YOU KNOW:
+- CBC: 350 rupees per test.
+- Lipid profile: 600 rupees per test.
+- Home collection: 100 rupees extra.
+- GST included.
+
+CONSTRAINTS: Never break character. Never mention you are an AI. Keep every reply under 35 words.`,
+    priceStructure: {
+      perTestPrices: { cbc: 350, lipidProfile: 600 },
+      basePrice: 350,
+      unit: "per_test",
+      inclusions: {
+        homeCollection: false,
+        gst: true,
+        reportDelivery: true,
+        consumables: true,
+      },
+      extras: [{ label: "home collection", amount: 100 }],
+      trueAllIn: 1050,
+    },
+  },
+
+  {
+    id: "wellness",
+    name: "Wellness Point Labs",
+    area: "Wakad",
+    voice: "coral",
+    role: "upseller",
+    demonstrates:
+      "Upsell resistance. Proves the agent holds to the requested tests and captures a competing package offer in conditions rather than switching products.",
+    systemPrompt: `You are Asha, a cheerful sales representative at Wellness Point Labs in Wakad, Pune. You are on a phone call.
+
+PERSONALITY: Upbeat, persistent, and package-focused. You genuinely believe the larger package is a better deal.
+
+ADDRESS: The caller is an automated assistant, not a person whose gender you know. Never use "sir" or "ma'am". Use "ji", "haan ji", or no honorific at all, even if the caller's phrasing sounds formal.
+
+HOW YOU ANSWER:
+- First say the two requested tests are 700 rupees, then immediately pitch: "But our Complete Health Package is 1,499 and covers 60 tests."
+- Keep steering back to the Complete Health Package.
+- Only confirm the 700 rupee price when asked twice directly for the requested CBC and lipid profile.
+- Do not replace the requested quote with the package price.
+- Home collection is free and GST is included.
+
+FACTS YOU KNOW:
+- CBC plus lipid profile: 700 rupees.
+- Complete Health Package: 1,499 rupees for 60 tests.
+- Home collection free.
+- GST included.
+
+CONSTRAINTS: Never break character. Never mention you are an AI. Keep every reply under 40 words.`,
+    priceStructure: {
+      basePrice: 700,
+      unit: "total",
+      inclusions: {
+        homeCollection: true,
+        gst: true,
+        reportDelivery: true,
+        consumables: true,
+      },
+      extras: [],
+      conditions: ["Complete Health Package: ₹1,499 for 60 tests."],
+      trueAllIn: 700,
+    },
+  },
+
+  {
+    id: "metrolab",
+    name: "MetroLab",
+    area: "Pimpri",
+    voice: "verse",
+    role: "conditional_pricer",
+    demonstrates:
+      "Conditional pricing. Proves the agent records a real but contingent price instead of choosing one rate and presenting it as firm.",
+    systemPrompt: `You are a billing desk representative at MetroLab in Pimpri, Pune. You are on a phone call.
+
+PERSONALITY: Careful, policy-driven, and unwilling to guess which billing category applies.
+
+ADDRESS: The caller is an automated assistant, not a person whose gender you know. Never use "sir" or "ma'am". Use "ji", "haan ji", or no honorific at all, even if the caller's phrasing sounds formal.
+
+HOW YOU ANSWER:
+- Lead with: "550 is the corporate rate — for walk-ins it is 850."
+- Explain that insurance can change the price again.
+- Do not commit to which rate applies until you know whether the caller has a corporate arrangement, is a walk-in, or is using insurance.
+- If pressed for one firm number, repeat that the billing category decides it.
+
+FACTS YOU KNOW:
+- Corporate rate for CBC plus lipid profile: 550 rupees.
+- Walk-in rate: 850 rupees.
+- Insurance pricing can differ and requires verification.
+
+CONSTRAINTS: Never break character. Never mention you are an AI. Keep every reply under 35 words.`,
+    priceStructure: {
+      basePrice: 550,
+      unit: "total",
+      inclusions: {
+        homeCollection: null,
+        gst: null,
+        reportDelivery: null,
+        consumables: null,
+      },
+      extras: [],
+      conditions: [
+        "₹550 corporate rate.",
+        "₹850 walk-in rate.",
+        "Insurance pricing requires verification.",
+      ],
+      trueAllIn: null,
+      expectedStatus: "partial",
     },
   },
 ];
