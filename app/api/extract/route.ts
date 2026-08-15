@@ -33,6 +33,31 @@ const ExtractedFieldsSchema = Quote.pick({
   unansweredQuestions: true,
 });
 
+type InclusionKey = "homeCollection" | "reportDelivery" | "consumables" | "gst";
+
+function inclusionForLabel(label: string): InclusionKey | null {
+  if (/\bgst\b/i.test(label)) return "gst";
+  if (/home.*collection|collection.*home/i.test(label)) return "homeCollection";
+  if (/report|courier/i.test(label)) return "reportDelivery";
+  if (/consumable|registration|handling/i.test(label)) return "consumables";
+  return null;
+}
+
+function serviceIsIncluded(text: string, field: InclusionKey) {
+  const service =
+    field === "homeCollection"
+      ? "home.*collection"
+      : field === "reportDelivery"
+      ? "report|courier"
+      : field === "consumables"
+      ? "consumable|registration|handling"
+      : "gst";
+  return new RegExp(
+    "(?:" + service + ").{0,50}(?:included|free|no charge)|(?:included|free|no charge).{0,50}(?:" + service + ")",
+    "i"
+  ).test(text);
+}
+
 export async function POST(request: Request) {
   let providerId = "unknown";
   let providerName = "Unknown provider";
@@ -99,18 +124,34 @@ Record GST only in inclusions.gst. Do not add GST to extras: the server computes
       throw error;
     }
 
-    const explicitGstExtra = transcript.some(
-      (turn) =>
-        turn.speaker === "business" &&
-        /\bgst\b.*\b(extra|18\s*%)/i.test(turn.text)
+    const businessLines = transcript
+      .filter((turn) => turn.speaker === "business")
+      .map((turn) => turn.text);
+    const inclusions = { ...extracted.inclusions };
+    const extras = extracted.extras.filter((extra) => !/\bgst\b/i.test(extra.label));
+
+    for (const line of businessLines) {
+      (["gst", "homeCollection", "reportDelivery", "consumables"] as const).forEach(
+        (field) => {
+          if (serviceIsIncluded(line, field)) inclusions[field] = true;
+        }
+      );
+    }
+
+    for (const extra of extracted.extras) {
+      const field = inclusionForLabel(extra.label);
+      if (field) inclusions[field] = false;
+    }
+
+    const explicitGstExtra = businessLines.some((line) =>
+      /\bgst\b.*\b(extra|18\s*%)/i.test(line)
     );
+    if (explicitGstExtra) inclusions.gst = false;
+
     const normalized = {
       ...extracted,
-      inclusions: {
-        ...extracted.inclusions,
-        gst: explicitGstExtra ? false : extracted.inclusions.gst,
-      },
-      extras: extracted.extras.filter((extra) => !/\bgst\b/i.test(extra.label)),
+      inclusions,
+      extras,
     };
     const quote = Quote.parse({
       ...normalized,
@@ -126,8 +167,8 @@ Record GST only in inclusions.gst. Do not add GST to extras: the server computes
           : null,
     });
     const { allInPrice, assumptions } = computeAllIn(quote);
-    console.info("[extract] GST / all-in assumptions:", {
-      gst: quote.inclusions.gst,
+    console.info("[extract] final inclusions / all-in assumptions:", {
+      inclusions: quote.inclusions,
       allInAssumptions: assumptions,
     });
     return Response.json(
