@@ -20,9 +20,21 @@ type CallResult = { quote: QuoteType; transcript: TranscriptTurn[] };
 type TurnListener = (turn: TranscriptTurn) => void;
 
 function testsOnly(request: string) {
-  const tests: string[] = [];
-  if (/\bcbc\b/i.test(request)) tests.push("a CBC");
-  if (/lipid/i.test(request)) tests.push("a lipid profile");
+  const testMatchers: [RegExp, string][] = [
+    [/\bcbc\b/i, "a CBC"],
+    [/lipid/i, "a lipid profile"],
+    [/\btsh\b/i, "TSH"],
+    [/\bt3\b/i, "T3"],
+    [/\bt4\b/i, "T4"],
+    [/vitamin\s*d\b/i, "vitamin D"],
+    [/vitamin\s*b12\b|\bb12\b/i, "vitamin B12"],
+    [/hba1c/i, "HbA1c"],
+    [/liver function|\blft\b/i, "liver function"],
+    [/kidney function|\bkft\b/i, "kidney function"],
+  ];
+  const tests = testMatchers
+    .filter(([matcher]) => matcher.test(request))
+    .map(([, label]) => label);
   return tests.length > 0 ? tests.join(" and ") : "the requested diagnostic tests";
 }
 

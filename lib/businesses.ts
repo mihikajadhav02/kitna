@@ -39,7 +39,7 @@ export interface Business {
 
 /** The user's request in the demo: CBC + Lipid Profile, one adult, home collection preferred. */
 export const DEMO_REQUEST =
-  "Price for a CBC and a lipid profile for one adult, with home sample collection if possible.";
+  "Price for a CBC and a lipid profile for one adult.";
 
 export const BUSINESSES: Business[] = [
   {
@@ -68,9 +68,12 @@ FACTS YOU KNOW (reveal naturally, never as a list):
 - Reports come by WhatsApp same day if the sample is collected before 10am, otherwise next morning.
 - Home collection slots: 6:30am to 10am, seven days.
 - Fasting of 10-12 hours is needed for the lipid profile.
+- For other requests, your all-inclusive rates are: TSH 400, T3 300, T4 300, vitamin D 1100, vitamin B12 900, HbA1c 450, liver function 750, kidney function 700. Quote a clean requested-test total; only mention thyroid (850) or vitamin (1800) bundles if asked.
 
 CONSTRAINTS: Never break character. Never mention you are an AI. Keep every reply under 40 words — this is a phone call, not an email.`,
     priceStructure: {
+      testPrices: { cbc: 450, lipidProfile: 500, tsh: 400, t3: 300, t4: 300, vitaminD: 1100, vitaminB12: 900, hba1c: 450, liverFunction: 750, kidneyFunction: 700 },
+      bundlingDiscounts: { "CBC + lipid profile": 750, "T3 + T4 + TSH": 850, "Vitamin D + B12": 1800 },
       basePrice: 750,
       unit: "total",
       inclusions: {
@@ -116,9 +119,12 @@ FACTS YOU KNOW:
 - Physical report courier: 50 rupees. Digital report: free.
 - Slots 7am to 11am.
 - Fasting required for lipid profile.
+- Other headline rates are: TSH 220, T3 160, T4 160, vitamin D 750, vitamin B12 600, HbA1c 280, liver function 450, kidney function 420. Only disclose any requested-test bundle discount if specifically asked; extras still require specific questions.
 
 CONSTRAINTS: Never break character. Never mention you are an AI. Keep replies under 45 words.`,
     priceStructure: {
+      testPrices: { cbc: 250, lipidProfile: 300, tsh: 220, t3: 160, t4: 160, vitaminD: 750, vitaminB12: 600, hba1c: 280, liverFunction: 450, kidneyFunction: 420 },
+      bundlingDiscounts: { "CBC + lipid profile": 450, "T3 + T4 + TSH": 450, "Vitamin D + B12": 1250 },
       basePrice: 450,
       unit: "total",
       inclusions: {
@@ -161,9 +167,12 @@ FACTS YOU KNOW (but mostly will not say):
 - Real range for CBC + lipid profile: 600 to 1100 depending on panel.
 - Home collection exists, 100 rupees, but you will not confirm this on a call.
 - You want the caller to visit.
+- Your private rate card also covers TSH 350, T3 250, T4 250, vitamin D 1000, vitamin B12 800, HbA1c 350, liver function 600, and kidney function 550. Never itemise any of it on the phone.
 
 CONSTRAINTS: Never break character. Never mention you are an AI. Never give a single firm number — a range is the most you will ever concede. Keep replies under 35 words.`,
     priceStructure: {
+      testPrices: { cbc: 350, lipidProfile: 600, tsh: 350, t3: 250, t4: 250, vitaminD: 1000, vitaminB12: 800, hba1c: 350, liverFunction: 600, kidneyFunction: 550 },
+      bundlingDiscounts: { "CBC + lipid profile": [600, 1100] },
       basePrice: null,
       priceRange: [600, 1100],
       unit: null,
@@ -210,9 +219,12 @@ FACTS YOU KNOW:
 - Self-request (no prescription) adds a 200 rupee consultation charge, mandatory.
 - Home collection: 120 rupees extra, you state this proactively once you quote.
 - Reports in 12 hours.
+- Other basic-test rates are TSH 380, T3 290, T4 290, vitamin D 1050, vitamin B12 850, HbA1c 420, liver function 700, kidney function 650. Apply the same qualifying questions before quoting any combination; mention a bundle only if asked.
 
 CONSTRAINTS: Never break character. Never mention you are an AI. Never quote before all three questions are answered. Keep replies under 35 words.`,
     priceStructure: {
+      testPrices: { cbc: 450, lipidProfile: 440, tsh: 380, t3: 290, t4: 290, vitaminD: 1050, vitaminB12: 850, hba1c: 420, liverFunction: 700, kidneyFunction: 650 },
+      bundlingDiscounts: { "CBC + lipid profile": 890, "T3 + T4 + TSH": 850 },
       basePrice: 890,
       unit: "total",
       inclusions: {
@@ -249,8 +261,11 @@ Mode B (wrong person): You are the security guard. You picked up because nobody 
 
 Use Mode B — it is the better demo, because the agent must recognise a dead end from a cooperative human rather than from silence.
 
+PRIVATE RATE CARD: CBC 300, lipid profile 450, TSH 300, T3 220, T4 220, vitamin D 900, vitamin B12 700, HbA1c 320, liver function 550, kidney function 500. Never reveal or quote any of it.
+
 CONSTRAINTS: Never break character. Never mention you are an AI. Never invent a price under any circumstances, even if pressed. Keep replies under 30 words.`,
     priceStructure: {
+      testPrices: { cbc: 300, lipidProfile: 450, tsh: 300, t3: 220, t4: 220, vitaminD: 900, vitaminB12: 700, hba1c: 320, liverFunction: 550, kidneyFunction: 500 },
       basePrice: null,
       unit: null,
       inclusions: {
@@ -293,9 +308,11 @@ FACTS YOU KNOW:
 - Lipid profile: 600 rupees per test.
 - Home collection: 100 rupees extra.
 - GST included.
+- Other per-test rates: TSH 300, T3 225, T4 225, vitamin D 950, vitamin B12 750, HbA1c 375, liver function 625, kidney function 575. Quote each requested test separately and never volunteer their sum.
 
 CONSTRAINTS: Never break character. Never mention you are an AI. Keep every reply under 35 words.`,
     priceStructure: {
+      testPrices: { cbc: 350, lipidProfile: 600, tsh: 300, t3: 225, t4: 225, vitaminD: 950, vitaminB12: 750, hba1c: 375, liverFunction: 625, kidneyFunction: 575 },
       perTestPrices: { cbc: 350, lipidProfile: 600 },
       basePrice: 350,
       unit: "per_test",
@@ -336,9 +353,12 @@ FACTS YOU KNOW:
 - Complete Health Package: 1,499 rupees for 60 tests.
 - Home collection free.
 - GST included.
+- Other requested-test rates are TSH 350, T3 260, T4 260, vitamin D 1000, vitamin B12 800, HbA1c 400, liver function 650, kidney function 600. Offer a requested-test bundle only if asked, then resume pushing the 1,499 package.
 
 CONSTRAINTS: Never break character. Never mention you are an AI. Keep every reply under 40 words.`,
     priceStructure: {
+      testPrices: { cbc: 400, lipidProfile: 450, tsh: 350, t3: 260, t4: 260, vitaminD: 1000, vitaminB12: 800, hba1c: 400, liverFunction: 650, kidneyFunction: 600 },
+      bundlingDiscounts: { "CBC + lipid profile": 700, "T3 + T4 + TSH": 780, "Vitamin D + B12": 1600 },
       basePrice: 700,
       unit: "total",
       inclusions: {
@@ -377,9 +397,14 @@ FACTS YOU KNOW:
 - Corporate rate for CBC plus lipid profile: 550 rupees.
 - Walk-in rate: 850 rupees.
 - Insurance pricing can differ and requires verification.
+- Per-test corporate/walk-in rates are TSH 240/360, T3 180/270, T4 180/270, vitamin D 700/1050, vitamin B12 550/825, HbA1c 300/450, liver function 450/675, kidney function 425/640. The same billing condition applies to every test.
 
 CONSTRAINTS: Never break character. Never mention you are an AI. Keep every reply under 35 words.`,
     priceStructure: {
+      testPrices: {
+        corporate: { cbc: 275, lipidProfile: 275, tsh: 240, t3: 180, t4: 180, vitaminD: 700, vitaminB12: 550, hba1c: 300, liverFunction: 450, kidneyFunction: 425 },
+        walkIn: { cbc: 425, lipidProfile: 425, tsh: 360, t3: 270, t4: 270, vitaminD: 1050, vitaminB12: 825, hba1c: 450, liverFunction: 675, kidneyFunction: 640 },
+      },
       basePrice: 550,
       unit: "total",
       inclusions: {

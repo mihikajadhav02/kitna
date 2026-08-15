@@ -104,6 +104,7 @@ export default function CallPage() {
     businessId: string;
     providerName: string;
     source: SourceQuote;
+    lineItems: Quote["lineItems"];
   } | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const liveAudioRef = useRef(liveAudioBusinessId);
@@ -387,14 +388,21 @@ export default function CallPage() {
             <tbody className="divide-y divide-zinc-800">
               {rankedQuotes.map((quote) => {
                 const failure = ["no_quote", "unreachable"].includes(quote.status) ? quote.failureReason ?? "No quote received." : null;
-                const reveal = (source: SourceQuote) => setSelectedSource({ businessId: quote.providerId, providerName: quote.providerName, source });
-                const baseSource = sourceFor(quote, ["baseprice", "cost", "price"]);
+                const reveal = (source: SourceQuote, showLineItems = false) =>
+                  setSelectedSource({
+                    businessId: quote.providerId,
+                    providerName: quote.providerName,
+                    source,
+                    lineItems: showLineItems ? quote.lineItems : [],
+                  });
+                const lineItemSource = sourceFor(quote, ["lineitem", "test"]);
+                const baseSource = sourceFor(quote, ["baseprice", "cost", "price"]) ?? lineItemSource;
                 const extrasSource = sourceFor(quote, ["extra", "homecollection", "gst"]);
                 const turnaroundSource = sourceFor(quote, ["turnaround", "report"]);
                 return (
                   <tr key={quote.providerId} className="align-top">
                     <td className="p-4 text-lg font-semibold">{quote.providerName}{failure && <p className="mt-1 text-sm font-normal text-amber-300">{failure}</p>}</td>
-                    <td className="p-4">{failure ? "—" : <PriceCell source={baseSource} onReveal={reveal}>{quote.basePrice === null ? "—" : `₹${quote.basePrice}`}</PriceCell>}</td>
+                    <td className="p-4">{failure ? "—" : <PriceCell source={baseSource} onReveal={(source) => reveal(source, true)}>{quote.basePrice === null ? "—" : `₹${quote.basePrice}`}</PriceCell>}</td>
                     <td className="p-4">{quote.extras.length === 0 ? "—" : <PriceCell source={extrasSource} onReveal={reveal}>{quote.extras.map((extra) => extra.amount === null ? `${extra.label}: unknown` : `${extra.label}: ₹${extra.amount}`).join(", ")}</PriceCell>}</td>
                     <td className="p-4">{failure ? "—" : quote.allInPrice === null ? <PriceCell source={baseSource ?? extrasSource} onReveal={reveal}><span className="text-amber-300">incomplete — {quote.allInAssumptions.join(" ")}</span></PriceCell> : <PriceCell source={baseSource ?? extrasSource} onReveal={reveal}>₹{quote.allInPrice}</PriceCell>}</td>
                     <td className="p-4"><PriceCell source={turnaroundSource} onReveal={reveal}>{quote.turnaroundHours === null ? "—" : `${quote.turnaroundHours}h`}</PriceCell></td>
@@ -413,6 +421,20 @@ export default function CallPage() {
               {sourceTurn?.hasAudio && <button type="button" onClick={() => playTurn(selectedSource.businessId, sourceTurn.turnIndex)} className="text-cyan-400">{playing?.businessId === selectedSource.businessId && playing.turnIndex === sourceTurn.turnIndex ? "🔊" : "▶"}</button>}
               <p className="text-lg">“{selectedSource.source.verbatim}”</p>
             </div>
+            {selectedSource.lineItems.length > 0 && (
+              <div className="mt-4 border-t border-zinc-800 pt-3">
+                <p className="font-mono text-xs uppercase tracking-wider text-cyan-400">
+                  Individually quoted tests
+                </p>
+                <ul className="mt-2 space-y-1 font-mono text-sm text-zinc-300">
+                  {selectedSource.lineItems.map((item, index) => (
+                    <li key={`${item.test}-${index}`}>
+                      {item.test}: {item.price === null ? "not priced" : `₹${item.price}`}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </aside>
         )}
       </div>

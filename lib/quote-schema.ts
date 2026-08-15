@@ -81,6 +81,16 @@ export const Quote = z.object({
     )
     .default([]),
 
+  /** Individually priced tests, populated only when the provider itemises them. */
+  lineItems: z
+    .array(
+      z.object({
+        test: z.string(),
+        price: z.number().nonnegative().nullable(),
+      })
+    )
+    .default([]),
+
   /**
    * Comparable all-in figure: basePrice + known extras + GST if excluded.
    * null whenever an unknown could move the number — better to show a gap
@@ -137,6 +147,7 @@ export function emptyQuote(
       consumables: null,
     },
     extras: [],
+    lineItems: [],
     allInPrice: null,
     allInAssumptions: [],
     conditions: [],

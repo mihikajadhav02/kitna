@@ -4,6 +4,13 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { DEMO_REQUEST, PUBLIC_BUSINESSES } from "@/lib/businesses";
 
+const PRESETS = [
+  "CBC and lipid profile",
+  "TSH only",
+  "Thyroid panel for two adults",
+  "Vitamin D and B12",
+];
+
 export default function Home() {
   const router = useRouter();
   const [request, setRequest] = useState(DEMO_REQUEST);
@@ -54,6 +61,18 @@ export default function Home() {
             rows={4}
             className="mt-3 w-full resize-y border border-zinc-700 bg-[#0b0f14] p-4 text-lg leading-7 outline-none focus:border-cyan-400"
           />
+          <div className="mt-3 flex flex-wrap gap-2">
+            {PRESETS.map((preset) => (
+              <button
+                key={preset}
+                type="button"
+                onClick={() => setRequest(preset)}
+                className="border border-zinc-700 px-3 py-2 font-mono text-sm text-cyan-300 hover:border-cyan-700"
+              >
+                {preset}
+              </button>
+            ))}
+          </div>
         </section>
 
         <section className="mt-6 border border-zinc-800 bg-[#10161d] p-5 sm:p-7">

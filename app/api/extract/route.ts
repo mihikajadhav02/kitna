@@ -25,6 +25,7 @@ const ExtractedFieldsSchema = Quote.pick({
   unit: true,
   inclusions: true,
   extras: true,
+  lineItems: true,
   conditions: true,
   turnaroundHours: true,
   availability: true,
@@ -56,6 +57,42 @@ function serviceIsIncluded(text: string, field: InclusionKey) {
     "(?:" + service + ").{0,50}(?:included|free|no charge)|(?:included|free|no charge).{0,50}(?:" + service + ")",
     "i"
   ).test(text);
+}
+
+function fieldAskedByQuestion(text: string): InclusionKey | null {
+  if (!text.includes("?")) return null;
+  if (/\bgst\b/i.test(text)) return "gst";
+  if (/home.*collection|collection.*home/i.test(text)) return "homeCollection";
+  if (/report|courier/i.test(text)) return "reportDelivery";
+  if (/consumable|registration|handling/i.test(text)) return "consumables";
+  return null;
+}
+
+function servicePattern(field: InclusionKey) {
+  if (field === "homeCollection") return "(?:home|at home).{0,50}(?:collection|sample|phlebotomist|technician)|(?:collection|sample).{0,50}(?:home|at home)";
+  if (field === "reportDelivery") return "report|courier|whatsapp|email|portal";
+  if (field === "consumables") return "consumable|registration|handling|kit|disposable";
+  return "gst";
+}
+
+function answerSaysServiceIsExtra(text: string, field: InclusionKey) {
+  const service = servicePattern(field);
+  const explicitExtra = "(?:extra|not included|additional|separate|chargeable|excluded)";
+  const hasCharge = "(?:₹|rs\\.?|rupees?)\\s*\\d+|\\d+\\s*(?:₹|rs\\.?|rupees?)|\\d+\\s*%";
+  return new RegExp(
+    `(?:(?:${service}).{0,50}(?:${explicitExtra}|${hasCharge})|(?:${explicitExtra}|${hasCharge}).{0,50}(?:${service}))`,
+    "i"
+  ).test(text);
+}
+
+function answerImpliesServiceIncluded(text: string, field: InclusionKey) {
+  if (/\b(?:all[ -]?inclusive|no (?:extra|additional) charges?|no charge|nothing extra|that'?s all)\b/i.test(text)) {
+    return true;
+  }
+  if (/\b(?:it'?s|that'?s|just)?\s*₹?\s*\d+(?:\.\d+)?\s*(?:rupees?)?\s+only\b/i.test(text)) {
+    return true;
+  }
+  return new RegExp(servicePattern(field), "i").test(text);
 }
 
 export async function POST(request: Request) {
@@ -92,12 +129,17 @@ Return exactly these fields and types:
 - unit: "total" | "per_test" | "per_visit" | "per_item" | null
 - inclusions: { homeCollection: boolean | null, gst: boolean | null, reportDelivery: boolean | null, consumables: boolean | null }
 - extras: Array<{ label: string, amount: number | null }>
+- lineItems: Array<{ test: string, price: number | null }> (only for tests individually priced in the transcript)
 - conditions: string[]
 - turnaroundHours: number | null
 - availability: string | null
 - confidence: number from 0 through 1
 - sourceQuotes: Array<{ field: string, verbatim: string, turnIndex: integer }>
 - unansweredQuestions: string[]
+
+basePrice is the total price for every requested test, never the price of just one line item. If the provider itemised tests but did not explicitly state a total, leave basePrice null and preserve those stated prices in lineItems.
+
+When the business answers a direct inclusion question with "450 only", "no extra charges", "all inclusive", or a delivery/collection method without quoting a separate charge, that is a confirmation that the asked item is included. Leave an inclusion null only when the business genuinely dodges or gives no usable answer.
 
 Record GST only in inclusions.gst. Do not add GST to extras: the server computes stated GST from inclusions.gst. Every sourceQuotes.verbatim must be copied exactly from a business transcript line, and turnIndex must be that line's original index. Do not return providerId, providerName, currency, allInPrice, allInAssumptions, or failureReason; the server supplies those.`,
           },
@@ -124,9 +166,28 @@ Record GST only in inclusions.gst. Do not add GST to extras: the server computes
       throw error;
     }
 
+    // A per-test provider can explicitly state every requested rate without
+    // volunteering their sum. Adding only those disclosed line items is
+    // deterministic arithmetic, not an invented price.
+    const lineItemTotal =
+      extracted.lineItems.length > 0 &&
+      extracted.lineItems.every((item) => item.price !== null)
+        ? extracted.lineItems.reduce((total, item) => total + (item.price ?? 0), 0)
+        : null;
+    const basePrice = lineItemTotal ?? extracted.basePrice;
+    const unit = lineItemTotal === null ? extracted.unit : "total";
+
     const businessLines = transcript
       .filter((turn) => turn.speaker === "business")
       .map((turn) => turn.text);
+    const inclusionAnswers = transcript.flatMap((turn, index) => {
+      const field =
+        turn.speaker === "agent" ? fieldAskedByQuestion(turn.text) : null;
+      const answer = transcript[index + 1];
+      return field && answer?.speaker === "business"
+        ? [{ field, question: turn.text, answer: answer.text }]
+        : [];
+    });
     const inclusions = { ...extracted.inclusions };
     const extras = extracted.extras.filter((extra) => !/\bgst\b/i.test(extra.label));
 
@@ -136,6 +197,14 @@ Record GST only in inclusions.gst. Do not add GST to extras: the server computes
           if (serviceIsIncluded(line, field)) inclusions[field] = true;
         }
       );
+    }
+
+    for (const { field, answer } of inclusionAnswers) {
+      if (answerSaysServiceIsExtra(answer, field)) {
+        inclusions[field] = false;
+      } else if (answerImpliesServiceIncluded(answer, field)) {
+        inclusions[field] = true;
+      }
     }
 
     for (const extra of extracted.extras) {
@@ -148,10 +217,22 @@ Record GST only in inclusions.gst. Do not add GST to extras: the server computes
     );
     if (explicitGstExtra) inclusions.gst = false;
 
+    const unansweredQuestions = [
+      ...new Set([
+        ...extracted.unansweredQuestions,
+        ...inclusionAnswers
+          .filter(({ field }) => inclusions[field] === null)
+          .map(({ question }) => question),
+      ]),
+    ];
+
     const normalized = {
       ...extracted,
+      basePrice,
+      unit,
       inclusions,
       extras,
+      unansweredQuestions,
     };
     const quote = Quote.parse({
       ...normalized,
@@ -161,7 +242,7 @@ Record GST only in inclusions.gst. Do not add GST to extras: the server computes
       allInPrice: null,
       allInAssumptions: [],
       failureReason:
-        extracted.basePrice === null &&
+        basePrice === null &&
         (extracted.status === "no_quote" || extracted.status === "unreachable")
           ? "Provider did not give a firm price."
           : null,
